@@ -1,8 +1,11 @@
 import Input from "@/components/Input";
 import { useCallback, useState } from "react";
 import axios from "axios";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/router";
 
 const Auth = () => {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -14,6 +17,22 @@ const Auth = () => {
       currentVariant === "login" ? "register" : "login"
     );
   }, []);
+
+  //create login function，详见README ## 11.12
+  const login = useCallback(async () => {
+    try {
+      await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      });
+
+      router.push("/");
+    } catch (error) {
+      console.log(error);
+    }
+  }, [email, password, router]);
 
   /** 在auth.tsx中添加注册功能:
   使用useCallback钩子来定义一个名为register的函数，该函数是异步的，表示它会进行一些可能耗时的操作（比如网络请求）。
@@ -27,10 +46,12 @@ const Auth = () => {
         name,
         password,
       });
+
+      login();
     } catch (error) {
       console.log(error);
     }
-  }, [email, name, password]);
+  }, [email, name, password, login]);
 
   return (
     <div className="relative h-full w-full bg-[url('/images/hero.jpg')] bg-no-repeat bg-center bg-fixed bg-cover">
@@ -71,7 +92,7 @@ const Auth = () => {
               />
             </div>
             <button
-              onClick={register}
+              onClick={variant === "login" ? login : register}
               className="bg-red-600 py-3 text-white rounded-md w-full mt-10 hover:bg-red-700 transition"
             >
               {variant === "login" ? "Login" : "Sign up"}
