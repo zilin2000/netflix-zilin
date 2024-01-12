@@ -2,11 +2,10 @@
 > date: 2023.11.2  
 > resource: https://www.codewithantonio.com/projects/video-platform
 
-# Daily Log
-
-- [11.2](#11.2)
+# User accounts
+- test1 test1@gmail.com 1
 - 
-
+# Daily Log
 
 ## 11.2
 
@@ -348,7 +347,44 @@ Then we go the our webpage and click github icon, we will see the `/` page and i
 
 - same for google
 
+在您的项目中，您现在添加了使用Google和GitHub账户进行OAuth登录的功能。以下是您所做步骤的中文解释：
 
-## 11.15
+1. **安装图标库**:
+   - 运行`npm install react-icons`来安装React图标库，这样您就可以在UI中使用预先设计的图标了。
 
-## 11.16
+2. **导入图标**:
+   - 在`auth.tsx`文件中，您导入了Google和GitHub的图标，这样就可以在登录按钮上显示这些图标。
+
+3. **添加图标到UI**:
+   - 您在`auth.tsx`的一个`div`中添加了这些图标，创建了两个圆形按钮，一个用于Google登录，一个用于GitHub登录。每个按钮都有适当的样式，并且在用户鼠标悬停时有透明度变化的效果。
+
+4. **设置环境变量**:
+   - 在`.env`文件中，您添加了Google和GitHub OAuth应用程序的客户端ID和密钥。这些是从Google和GitHub的开发者设置中获取的，用于设置OAuth流程。
+
+5. **添加OAuth提供者**:
+   - 在`pages/api/auth/[...nextauth].ts`中，您导入了GitHub和Google的NextAuth提供者。
+   - 在`providers`数组中添加了对应的提供者配置，包括客户端ID和密钥，这些信息将从环境变量中获取。
+
+6. **安装Prisma适配器**:
+   - 运行`npm install @next-auth/prisma-adapter`安装Prisma适配器，这样NextAuth就可以与Prisma一起工作，将用户数据保存到数据库中。
+
+7. **配置Prisma适配器**:
+   - 在`nextauth.ts`文件中，您导入了Prisma适配器，并在NextAuth配置中添加了它。这允许NextAuth使用Prisma来保存和检索用户数据。
+
+8. **设置GitHub OAuth应用程序**:
+   - 在GitHub网站上，您需要设置一个OAuth应用程序。在设置OAuth应用程序后，GitHub会提供一个客户端ID和密钥。
+   - 将这些信息复制到`.env`文件中对应的环境变量中。
+
+9. **添加GitHub登录事件**:
+   - 在`auth.tsx`中，为GitHub图标按钮添加了一个`onClick`事件处理器，当点击时会调用`signIn`函数，并指定使用'github'提供者进行登录。
+   - 设置`callbackUrl`为'/'，意味着登录成功后会重定向到首页。
+
+10. **测试GitHub登录**:
+    - 打开您的网页，点击GitHub图标，应该能够看到登录流程，并且在登录成功后跳转到首页。
+    - 如果登录成功，在数据库中应该能看到您的GitHub账户信息。
+
+11. **为Google重复相同的步骤**:
+    - 对于Google登录，您需要重复相同的步骤，包括在Google开发者控制台创建OAuth应用程序，获取客户端ID和密钥，并在`.env`文件中设置。
+    - 在`auth.tsx`中为Google图标按钮添加一个`onClick`事件处理器，同样调用`signIn`函数，并指定使用'google'提供者进行登录。
+
+通过以上步骤，您的应用程序现在支持通过GitHub和Google的OAuth服务进行登录，用户可以使用他们现有的账户来快速登录您的应用程序。这为用户提供了便捷的登录选项，并且OAuth登录也是一种安全的登录方法，因为用户的密码不会被传递到您的服务器。
