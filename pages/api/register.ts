@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const{email, name, password} = req.body;
 
         //check if email has been taken
-        const existingUser = await prismadb.user.findFirst({
+        const existingUser = await prismadb.user.findUnique({
             where: {
                 email,
             }

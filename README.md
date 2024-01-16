@@ -388,3 +388,367 @@ Then we go the our webpage and click github icon, we will see the `/` page and i
     - 在`auth.tsx`中为Google图标按钮添加一个`onClick`事件处理器，同样调用`signIn`函数，并指定使用'google'提供者进行登录。
 
 通过以上步骤，您的应用程序现在支持通过GitHub和Google的OAuth服务进行登录，用户可以使用他们现有的账户来快速登录您的应用程序。这为用户提供了便捷的登录选项，并且OAuth登录也是一种安全的登录方法，因为用户的密码不会被传递到您的服务器。
+
+## 1.12
+
+> video: 1:34:00
+
+### 在/lib文件夹下创建serverAuth.ts
+
+``` typescript
+import { NextApiRequest } from "next";
+import { getSession } from "next-auth/react";
+
+import prismadb from '@/lib/prismadb';
+
+const serverAuth = async (req: NextApiRequest) => {
+    const session = await getSession({ req });
+
+    if (!session?.user?.email) {
+        throw new Error('Not Sign In');
+    }
+
+    const currentUser = await prismadb.user.findUnique({
+        where: {
+            email: session.user.email,
+        }
+    });
+
+    if (!currentUser) {
+        throw new Error('Not Sign In');
+    }
+
+    return { currentUser };
+};
+
+export default serverAuth;
+```
+
+### 在/api文件夹下创建current.ts
+
+``` typescript
+import { NextApiRequest, NextApiResponse } from "next";
+
+import serverAuth from "@/lib/serverAuth";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "GET") {
+    return res.status(405).end();
+  }
+
+  try {
+    const { currentUser } = await serverAuth(req);
+
+    //why we don't check whether the user exists?
+    //we did it in serverAuth.ts
+    return res.status(200).json(currentUser);
+  } catch (error) {
+    console.log(error);
+    return res.status(400).end();
+  }
+}
+```
+
+### 在/lib文件夹下创建fetcher.ts
+
+``` typescript
+import axios from "axios";
+
+const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+
+export default fetcher;
+```
+
+### 创建一个新的文件夹/hooks
+
+run command `npm install swr`
+
+create useCurrentUser.ts under /hooks
+
+``` typescript
+import useSWR from "swr";// use to fetch data
+
+import fetcher from '@/lib/fetcher';
+
+const useCurrentUser = () => {
+    const {data, error, isLoading, mutate } = useSWR('/api/current', fetcher);
+
+    return {
+        data,
+        error,
+        isLoading,
+        mutate
+    }
+};
+
+export default useCurrentUser;
+```
+
+### do some changes in index.tsx 
+``` typescript
+//changes 1.12, protect home page
+import { NextPageContext } from "next";
+import { getSession, signOut } from "next-auth/react";
+
+export async function getServerSideProps(context: NextPageContext) {
+  //on the client side, different from serverAuth
+  // 1.14
+
+  const session = await getSession(context);
+
+  // check if available session exists, if doesn't, it will redirect to /auth
+  // if we click logout, we will redirect to /auth
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/auth",
+        permanent: false,
+      },
+    };
+  }
+  return {
+    props: {},
+  };
+}
+
+export default function Home() {
+  return (
+    <>
+      <h1 className="text-5xl text-green-500">Netflix Clone</h1>
+      <button className="h-10 w-full bg-white " onClick={() => signOut()}>
+        Logout!  
+      </button>
+    </>
+  );
+}
+```
+
+在写完上面的代码之后，我们再次打开localhost就会发现我们直接到了/auth的页面也就是sign in页面，而不是home page
+
+![截屏2024-01-14 18.54.52.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2edb5f55654a4ece8d448c30590bf448~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=2870&h=1506&s=5084512&e=png&b=1b1918)
+
+点个GitHub登陆我们就会看到如下页面，再点击logout就会退到/auth页面
+
+
+![截屏2024-01-14 18.55.51.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cf27f7f1275642639b87879e73637e5e~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1413&h=901&s=112404&e=png&b=18181b)
+
+
+do some changes in `index.tsx`
+
+add `<p className="text-white">Logged in as: {user?.email}</p>` you will see
+
+
+![截屏2024-01-16 09.11.43.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d3dfa797d9cd41449ff2df71d0c94288~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=768&h=514&s=36351&e=png&b=18181b)
+这段Markdown文件描述的是你在Next.js项目中进行的一系列步骤，目的是增强用户认证流程并改进用户界面。下面是每个步骤的解释：
+
+1. **保护首页**:
+   - 你在`index.tsx`中添加了`getServerSideProps`函数，这是Next.js的一个服务器端渲染函数。它在每次页面请求时运行，用于检查用户的会话信息。
+   - 如果没有找到会话（即用户没有登录），则重定向用户到`/auth`页面（登录页面）。这是通过返回一个包含`redirect`对象的对象来实现的，这确保
+
+在你的项目中，你所描述的步骤都是围绕用户身份验证和用户界面更新的。这里是每一步详细的解释：
+
+1. **保护首页**:
+   - 通过在`index.tsx`文件中使用`getServerSideProps`函数，确保如果没有用户会话信息（即用户未登录），则自动重定向用户到`/auth`页面。这是服务器端的操作，用于保护那些仅限于已登录用户访问的页面。
+
+2. **使用getSession检查会话状态**:
+   - 使用`getSession`方法从Next.js的上下文中检查当前的用户会话。如果没有会话信息，那么函数返回一个重定向对象，告诉Next.js将用户重定向到登录页面。
+
+3. **添加登出按钮
+
+在你的项目中，你所描述的步骤都是围绕用户身份验证和用户界面更新的。这里是每一步详细的解释：
+
+1. **保护首页**:
+   - 通过在`index.tsx`文件中使用`getServerSideProps`函数，确保如果没有用户会话信息（即用户未登录），则自动重定向用户到`/auth`页面。这是服务器端的操作，用于保护那些仅限于已登录用户访问的页面。
+
+2. **使用getSession检查会话状态**:
+   - 使用`getSession`方法从Next.js的上下文中检查当前的用户会话。如果没有会话信息，那么函数返回一个重定向对象，告诉Next.js将用户重定向到登录页面。
+
+3. **添加登出按钮**:
+   - 在首页组件中添加了一个登出按钮。当用户点击这个按钮时，会触发`signOut`函数，这将结束用户的会话并将他们重定向到登录页面。
+
+4. **更新首页以显示用户邮箱**:
+   - 你提议在首页上显示当前登录用户的邮箱地址。这是通过添加一个段落标签并插入`{user?.email}`来实现的，其中`user`是通过`useCurrentUser`钩子获取的当前用户信息
+
+### create profile screen
+
+- create `profiles.tsx` under `/pages` 
+
+```typescript 
+import { NextPageContext } from "next";
+import { getSession } from "next-auth/react";
+
+export async function getServerSideProps(context: NextPageContext) {
+    const session = await getSession(context);
+
+    if(!session) {
+        return {
+            redirect: {
+                destination: '/auth',
+                permanent: false,
+            }
+        }
+    }
+
+    return {
+        props: {}
+    }
+}
+
+const Profiles = () => {
+    return (
+        <div>
+            <p className="text-white text-4xl">Profiles</p>
+        </div>
+    )
+}
+
+export default Profiles;
+```
+
+- make some changes in `auth.tsx`
+
+0. delete `routers` in login and other places
+
+```typescript
+  const login = useCallback(async () => {
+    try {
+      await signIn("credentials", {
+        email,
+        password,
+        callbackUrl: "/profiles",
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }, [email, password]);
+  ```
+  
+ 1. add `/profiles` in login and Google and Github auth
+
+- download images from Github for user portrait
+- add something in `profiles.tsx`
+
+``` typescript
+import { NextPageContext } from "next";
+import { getSession } from "next-auth/react";
+
+export async function getServerSideProps(context: NextPageContext) {
+  const session = await getSession(context);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/auth",
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
+}
+
+const Profiles = () => {
+  return (
+    <div className="flex items-center h-full justify-center">
+      <div className="flex flex-col">
+        <h1 className="text-3xl md:text-6xl text-white text-center">
+          Who is watching?
+        </h1>
+        <div className="flex items-center justify-center gap-8 mt-10">
+          <div onClick={() => {}}>
+            <div className="group flex-row w-44 mx-auto">
+              <div
+                className="
+                        w-44
+                        h-44
+                        rounded-md
+                        flex
+                        items-center
+                        justify-center
+                        border-2
+                        border-transparent
+                        group-hover:cursor-pointer
+                        group-hover:border-white
+                        overflow-hidden
+                    "
+              >
+                <img src="/images/default-green.png" alt="Profile" />
+              </div>
+              <div
+                className="
+                        mt-4
+                        text-gray-400
+                        text-2xl
+                        text-center
+                        group-hover:text-white
+                    "
+              >
+                Name
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profiles;
+```
+
+then `/profiles` looks like this
+
+![截屏2024-01-16 10.00.08 (2).png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/320d3d12dded47a69e0893f89737b99f~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=2880&h=1800&s=607764&e=png&b=18181b)
+
+**how do we actually show user name?**
+
+add `  const { data: user } = useCurrentUser();` then replace Name with 
+`{user?.name}`
+
+![截屏2024-01-16 10.04.06 (2).png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/28ecf05e33ca4589b6c58a0f9d4004fa~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=2880&h=1800&s=600341&e=png&b=18181b)
+
+- make `onClick` redirect to `'/'`
+    - add `  const router = useRouter();`
+    - change into `<div onClick={() => router.push('/')}>`
+
+Then when we click the `green-png` we will redirect to home page
+
+您正在进行的步骤是为您的Netflix克隆应用创建一个用户配置文件选择页面，并对登录逻辑进行了调整。以下是详细的步骤解释：
+
+### 创建用户配置文件选择页面 (`profiles.tsx`)
+
+1. **设置服务端渲染** (`getServerSideProps`):
+   - 通过`getServerSideProps`函数在服务器端获取用户的会话信息（使用`getSession`）。
+   - 如果用户没有登录（`session`为空），将用户重定向到登录页面（`/auth`）。
+   - 这保证了只有登录用户才能访问配置文件选择页面。
+
+2. **构建`Profiles`组件**:
+   - 创建一个基本的React组件`Profiles`，该组件显示一个简单的文本（例如：“Profiles”）。
+   - 这是配置文件选择页面的初始布局，后续将添加更多内容和功能。
+
+### 修改登录逻辑 (`auth.tsx`)
+
+1. **移除`router`使用**:
+   - 删除登录逻辑中的`router`对象，因为现在登录后的重定向将通过`signIn`函数的`callbackUrl`参数来控制。
+
+2. **更新登录函数**:
+   - 在`signIn`调用中设置`callbackUrl`为`"/profiles"`。
+   - 这意味着登录成功后，用户将被重定向到配置文件选择页面而不是首页。
+   - 这样的修改适用于凭据登录以及通过Google和GitHub进行的OAuth登录。
+
+### 下载用户头像图片
+
+- 从GitHub或其他来源下载用于用户头像的图片。
+- 这些图片将在配置文件选择页面中使用，允许用户选择或查看他们的配置文件。
+
+### 更新`profiles.tsx`以显示配置文件
+
+- 添加更复杂的HTML和CSS代码来创建一个更丰富的用户界面。
+- 例如，您可能会添加用户头像的图片，以及一些交互元素，允许用户选择不同的配置文件。
+
+这些步骤的目的是为用户提供一个选择他们观看配置文件的页面，类似于Netflix在用户登录后显示的配置文件选择界面。这提高了用户体验，并模拟了真实Netflix应用的行为。通过将登录后的重定向更改为配置文件选择页面，您确保了用户在进入应用时可以选择正确的观看环境。
